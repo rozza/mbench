@@ -7,9 +7,9 @@ import com.allanbank.mongodb.bson.builder.BuilderFactory
 
 class InsertBenchmark extends Benchmark {
 
-  performance of "Insert" in {
-    measure method "MongoDB inserts simple documents" in {
-      bench(singleInserts, "Sync") {
+  performance of "Single Inserts" in {
+    measure method "3.0.x Driver" in {
+      bench(counts, "Sync") {
         insertCount =>
           val collection = getCollection()
           (0 until insertCount).map(_ => {
@@ -17,7 +17,7 @@ class InsertBenchmark extends Benchmark {
           })
       }
 
-      bench(singleInserts, "Async") {
+      bench(counts, "Async") {
         insertCount =>
           val collection = getAsyncCollection()
           val futures = (0 until insertCount).map(_ => {
@@ -28,7 +28,7 @@ class InsertBenchmark extends Benchmark {
     }
 
     measure method "mongodb-driver-async" in {
-      bench(singleInserts, "Sync")  {
+      bench(counts, "Sync")  {
         insertCount =>
           val collection = getAllenBankAsyncCollection()
           val document = BuilderFactory.start()
@@ -38,7 +38,7 @@ class InsertBenchmark extends Benchmark {
           })
       }
 
-      bench(singleInserts, "Async") {
+      bench(counts, "Async") {
         insertCount =>
           val collection = getAllenBankAsyncCollection()
           val document = BuilderFactory.start()

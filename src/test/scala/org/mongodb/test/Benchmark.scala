@@ -4,7 +4,7 @@ import java.util.logging.{Level, Logger}
 
 import scala.util.Properties
 
-import org.mongodb.{MongoClientURI, MongoClients, async}
+import org.mongodb.{Document, MongoClientURI, MongoClients, async}
 
 import com.allanbank.mongodb.{MongoClientConfiguration, MongoFactory}
 import org.scalameter.{Reporter, Executor, Gen}
@@ -55,7 +55,7 @@ trait Benchmark extends PerformanceTest.OnlineRegressionReport {
     count / size
   }
   val bulkInsert = Gen.tupled(sizes, loops)
-  val singleInserts = Gen.exponential("Inserts")(200, 64000, 2)
+  val counts = Gen.exponential("Inserts")(200, 64000, 2)
 
   def bench[T](gen: Gen[T], name: String)(block: T => Any) {
     using(gen) config(
@@ -71,7 +71,10 @@ trait Benchmark extends PerformanceTest.OnlineRegressionReport {
       database.tools.createCollection(collectionName)
     } afterTests {
       database.tools.drop()
-    } setUp {_ => getCollection().tools().drop() } curve name in block
+    } setUp {_ => {
+      getCollection().tools().drop()
+      getCollection().insert(new Document("_id", 1))
+    }} curve name in block
   }
 
 }
