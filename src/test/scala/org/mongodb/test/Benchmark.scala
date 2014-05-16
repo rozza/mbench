@@ -4,13 +4,15 @@ import java.util.logging.{Level, Logger}
 
 import scala.util.Properties
 
-import org.mongodb.{Document, MongoClientURI, MongoClients, async}
+import org.mongodb._
 
 import com.allanbank.mongodb.{MongoClientConfiguration, MongoFactory}
 import org.scalameter.{Reporter, Executor, Gen}
 import org.scalameter.Executor.Measurer.Default
 import org.scalameter.api.{PerformanceTest, exec}
 import org.scalameter.reporting.{DsvReporter, HtmlReporter, RegressionReporter}
+import org.mongodb.async
+import com.allanbank.mongodb
 
 trait Benchmark extends PerformanceTest.OnlineRegressionReport {
 
@@ -31,20 +33,24 @@ trait Benchmark extends PerformanceTest.OnlineRegressionReport {
   val databaseName = "mongo-perf"
   def collectionName = this.getClass.getSimpleName
 
-  lazy val client = MongoClients.create(new MongoClientURI(mongoClientURI))
-  lazy val database = client.getDatabase(databaseName)
-  def getCollection() = database.getCollection(collectionName)
-  def getAsyncCollection() = {
+  def getClient = MongoClients.create(new MongoClientURI(mongoClientURI))
+  def getDatabase(client: MongoClient) = client.getDatabase(databaseName)
+  def getCollection(client: MongoClient) = getDatabase(client).getCollection(collectionName)
+
+  def getAsyncClient = {
     val uri = new MongoClientURI(mongoClientURI)
-    async.MongoClients.create(uri, uri.getOptions())
-      .getDatabase(databaseName)
-      .getCollection(collectionName)
+    async.MongoClients.create(uri, uri.getOptions)
+  }
+  def getAsyncCollection(client: async.MongoClient) =
+   client.getDatabase(databaseName).getCollection(collectionName)
+
+  def getAllanBankClient: mongodb.MongoClient = {
+    val config = new MongoClientConfiguration(mongoClientURI)
+    MongoFactory.createClient(config)
   }
 
-  def getAllenBankAsyncCollection() = {
-    val config = new MongoClientConfiguration(mongoClientURI)
-    MongoFactory.createClient(config).getDatabase(databaseName).getCollection(collectionName)
-  }
+  def getAllanBankAsyncCollection(client: mongodb.MongoClient) =
+    client.getDatabase(databaseName).getCollection(collectionName)
 
   val count = 5000
   val fillerString = "*" * 400
@@ -55,25 +61,34 @@ trait Benchmark extends PerformanceTest.OnlineRegressionReport {
     count / size
   }
   val bulkInsert = Gen.tupled(sizes, loops)
-  val counts = Gen.exponential("Inserts")(200, 64000, 2)
+  val insertCounts = Gen.exponential("Operations")(100, 128000, 2)
+  val updateCounts = Gen.exponential("Operations")(100, 128000, 2)
+
 
   def bench[T](gen: Gen[T], name: String)(block: T => Any) {
     using(gen) config(
-      exec.benchRuns -> 5,
-      exec.independentSamples -> 2,
-      exec.minWarmupRuns -> 2,
-      exec.maxWarmupRuns -> 5
+      exec.benchRuns -> 2,
+      exec.independentSamples -> 1,
+      exec.minWarmupRuns -> 1,
+      exec.maxWarmupRuns -> 2
       ) beforeTests {
       // Turn off org.mongodb's noisy connection INFO logging - only works with the JULLogger
       Logger.getLogger("org.mongodb.driver.cluster").setLevel(Level.WARNING)
       Logger.getLogger("org.mongodb.driver.connection").setLevel(Level.WARNING)
-      database.tools.drop()
-      database.tools.createCollection(collectionName)
+      val client = getClient
+      val db = getDatabase(client)
+      db.tools.drop()
+      db.tools.createCollection(collectionName)
+      client.close()
     } afterTests {
-      database.tools.drop()
+      val client = getClient
+      getDatabase(client).tools.drop()
+      client.close()
     } setUp {_ => {
-      getCollection().tools().drop()
-      getCollection().insert(new Document("_id", 1))
+      val client = getClient
+      getCollection(client).tools().drop()
+      getCollection(client).insert(new Document("_id", 1))
+      client.close()
     }} curve name in block
   }
 
