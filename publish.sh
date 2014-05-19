@@ -11,8 +11,8 @@ if git diff-index --quiet HEAD --; then
     git co gh-pages
 
     rm -rf *
-    mv .public/* .
-    rm -rf .public
+    mv .tmp/* .
+    rm -rf .tmp
     rm publish.sh
 
     echo " ======================== "

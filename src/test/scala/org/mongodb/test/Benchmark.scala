@@ -67,10 +67,10 @@ trait Benchmark extends PerformanceTest.OnlineRegressionReport {
 
   def bench[T](gen: Gen[T], name: String)(block: T => Any) {
     using(gen) config(
-      exec.benchRuns -> 2,
-      exec.independentSamples -> 1,
-      exec.minWarmupRuns -> 1,
-      exec.maxWarmupRuns -> 2
+      exec.benchRuns -> 5,
+      exec.independentSamples -> 2,
+      exec.minWarmupRuns -> 2,
+      exec.maxWarmupRuns -> 4
       ) beforeTests {
       // Turn off org.mongodb's noisy connection INFO logging - only works with the JULLogger
       Logger.getLogger("org.mongodb.driver.cluster").setLevel(Level.WARNING)
